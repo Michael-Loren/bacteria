@@ -12,7 +12,7 @@ class pNet(nn.Module):
         self.flatten = nn.Flatten()
         self.dense1 = nn.Linear(128 * 13, 100)
         self.dropout2 = nn.Dropout(0.3)
-        self.dense2 = nn.Linear(100, 2)
+        self.dense2 = nn.Linear(100, 33)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))

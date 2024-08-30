@@ -12,6 +12,8 @@ sys.path.append(module_path)
 # Now you can import the WHTConv2D class
 from WHT import WHTConv2D
 from DCT import DCTConv2D
+from BWT import BWTConv2D
+from DChT import DChTConv2D
 class CustomResNet50(nn.Module):
     def __init__(self, num_classes=10):
         super(CustomResNet50, self).__init__()
@@ -23,12 +25,13 @@ class CustomResNet50(nn.Module):
             param.requires_grad = False
 
 	# Add a new 1x1 convolutional layer to reduce channels from 31 to 3
-        #self.conv1x1 = nn.Conv2d(in_channels=31, out_channels=3, kernel_size=1, stride=1, padding=0)
+        # self.conv1x1 = nn.Conv2d(in_channels=31, out_channels=3, kernel_size=1, stride=1, padding=0)
         
         # Add a new WHT layer
-        #self.wht_layer = WHTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
-        self.dct_layer = DCTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
-       
+        # self.t_layer = WHTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
+        self.t_layer = DCTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
+        # self.t_layer = BWTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
+        #self.t_layer = DChTConv2D(height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False)
         num_features = self.resnet50.fc.in_features
         self.resnet50.fc = nn.Linear(num_features, num_classes)
         
@@ -37,9 +40,9 @@ class CustomResNet50(nn.Module):
             param.requires_grad = True
 
     def forward(self, x):
-        #x = self.conv1x1(x)
+        # x = self.conv1x1(x)
         # Pass the input through the new WHT layer
-        x = self.dct_layer(x)
+        x = self.t_layer(x)
         # Then pass it through the ResNet model
         x = self.resnet50(x)
         return x
