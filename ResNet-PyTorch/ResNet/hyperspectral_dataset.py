@@ -1,38 +1,19 @@
-# hyperspectral_dataset.py
-
 import os
 import scipy.io
 import torch
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
-# Custom Transform Classes
-class NormalizeProfile:
-    def __init__(self, mean, std):
-        self.mean = torch.tensor(mean)
-        self.std = torch.tensor(std)
-
-    def __call__(self, profile):
-        return (profile - self.mean) / self.std
-
-class NormalizeCube:
-    def __init__(self, mean, std):
-        self.mean = torch.tensor(mean)
-        self.std = torch.tensor(std)
-
-    def __call__(self, cube):
-        return (cube - self.mean[:, None, None]) / self.std[:, None, None]
-
-# Custom Dataset Class
+# Custom Dataset Class for Hyperspectral Data
 class HyperspectralDataset(Dataset):
-    def __init__(self, root_dir, cube_transform=None, profile_transform=None):
+    def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.data = []
         self.labels = []
         self.label_map = {}
-        self.cube_transform = cube_transform
-        self.profile_transform = profile_transform
+        self.transform = transform
 
+        # Populate dataset with file paths and labels
         species_dirs = os.listdir(root_dir)
         for idx, species in enumerate(species_dirs):
             species_dir = os.path.join(root_dir, species)
@@ -59,24 +40,51 @@ class HyperspectralDataset(Dataset):
         profile = mat_contents['profile']
 
         # Convert to PyTorch tensor and permute dimensions
-        cube = torch.tensor(cube, dtype=torch.float32).permute(2, 0, 1)
+        cube = torch.tensor(cube, dtype=torch.float32).permute(2, 0, 1)  # Channels first: (31, H, W)
         profile = torch.tensor(profile, dtype=torch.float32)
         label = torch.tensor(label, dtype=torch.long)
 
-        if self.cube_transform:
-            cube = self.cube_transform(cube)
-        
-        if self.profile_transform:
-            profile = self.profile_transform(profile)
+        # Combine cube and profile for transformation (if needed)
+        # If specific transforms for cube or profile are required, handle them in the transform function
+        sample = {'cube': cube, 'profile': profile}
 
-        return cube, profile, label
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample, label
 
     def get_image_path(self, idx):
         return self.data[idx]
 
-    def set_transforms(self, cube_transform=None, profile_transform=None):
-        self.cube_transform = cube_transform
-        self.profile_transform = profile_transform
+    def set_transform(self, transform=None):
+        self.transform = transform
+
+# Custom transform example function with normalization and resizing
+class CustomTransform:
+    def __init__(self, cube_mean, cube_std, profile_mean, profile_std, resize_shape=(224, 224)):
+        self.cube_mean = torch.tensor(cube_mean).view(-1, 1, 1)
+        self.cube_std = torch.tensor(cube_std).view(-1, 1, 1)
+        self.profile_mean = torch.tensor(profile_mean)
+        self.profile_std = torch.tensor(profile_std)
+        self.resize_shape = resize_shape
+        
+        # Define a torchvision Resize transformation for the cube data
+        self.resize = transforms.Resize(resize_shape)
+
+    def __call__(self, sample):
+        cube = sample['cube']
+        profile = sample['profile']
+        
+        # Resize the cube data
+        # The cube is expected to be in the format (C, H, W), where C is the number of channels
+        cube = self.resize(cube)
+        
+        # Normalize cube
+        cube = (cube - self.cube_mean) / self.cube_std
+        # Normalize profile
+        profile = (profile - self.profile_mean) / self.profile_std
+        
+        return {'cube': cube, 'profile': profile}
 
 # Function to compute statistics
 def compute_statistics(dataset):
@@ -106,3 +114,26 @@ def compute_statistics(dataset):
 
     return channel_means_cube, channel_stds_cube, channel_means_profile, channel_stds_profile
 
+# Example usage:
+if __name__ == "__main__":
+    dataset = HyperspectralDataset(root_dir='../../dibasRP/all')
+
+    # Compute statistics for the dataset
+    channel_means_cube, channel_stds_cube, channel_means_profile, channel_stds_profile = compute_statistics(dataset)
+
+    # Create custom transform
+    custom_transform = CustomTransform(
+        cube_mean=channel_means_cube, 
+        cube_std=channel_stds_cube, 
+        profile_mean=channel_means_profile, 
+        profile_std=channel_stds_profile
+    )
+
+    # Apply transform to the dataset
+    dataset.set_transform(transform=custom_transform)
+
+    # Example DataLoader
+    dataloader = DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4)
+    for batch in dataloader:
+        print(batch)
+        break
