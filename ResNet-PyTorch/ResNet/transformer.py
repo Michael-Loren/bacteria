@@ -15,24 +15,30 @@ from DCT import DCTConv2D
 from BWT import BWTConv2D
 from DChT import DChTConv2D
 
-# Custom model class
 class TransformerMod(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=0, transformer_model="facebook/deit-base-patch16-224", transform_layer="DCT", height=224, width=224, in_channels=31, out_channels=3, pods=3, residual=False):
         super(TransformerMod, self).__init__()
-        # Load the pretrained model
-        self.customtransformer = AutoModelForImageClassification.from_pretrained("facebook/deit-base-patch16-224")
+        
+        # Load the specified pretrained model
+        self.customtransformer = AutoModelForImageClassification.from_pretrained(transformer_model)
         
         # Freeze the pretrained layers
         for param in self.customtransformer.parameters():
             param.requires_grad = False
 
-        h = 224
-        w = 224
-        # Add a new transform layer
-        #self.t_layer = WHTConv2D(height=h, width=w, in_channels=31, out_channels=3, pods=3, residual=False)
-        self.t_layer = DCTConv2D(height=h, width=w, in_channels=31, out_channels=3, pods=3, residual=False)
-        #self.t_layer = BWTConv2D(height=h, width=w, in_channels=31, out_channels=3, pods=3, residual=False)
-        #self.t_layer = DChTConv2D(height=h, width=w, in_channels=31, out_channels=3, pods=3, residual=False)
+        # Dynamically select the transform layer
+        if transform_layer == "WHT":
+            self.t_layer = WHTConv2D(height=height, width=width, in_channels=in_channels, out_channels=out_channels, pods=pods, residual=residual)
+        elif transform_layer == "DCT":
+            self.t_layer = DCTConv2D(height=height, width=width, in_channels=in_channels, out_channels=out_channels, pods=pods, residual=residual)
+        elif transform_layer == "BWT":
+            self.t_layer = BWTConv2D(height=height, width=width, in_channels=in_channels, out_channels=out_channels, pods=pods, residual=residual)
+        elif transform_layer == "DChT":
+            self.t_layer = DChTConv2D(height=height, width=width, in_channels=in_channels, out_channels=out_channels, pods=pods, residual=residual)
+        elif transform_layer == "Conv1x1":
+            self.t_layer = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, padding=0)
+        else:
+            raise ValueError(f"Unknown transform layer: {transform_layer}")
         
         # Ensure the final classifier has requires_grad=True
         self.customtransformer.classifier.requires_grad_(True)
@@ -44,8 +50,7 @@ class TransformerMod(nn.Module):
     def forward(self, x):
         # Pass the input through the transform layer
         x = self.t_layer(x)
-        # Pass the transformed input through the EfficientNet model
+        # Pass the transformed input through the transformer model
         x = self.customtransformer(x)
         return x
-
 

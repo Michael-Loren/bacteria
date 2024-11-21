@@ -32,23 +32,30 @@ transformer_mod.customtransformer.classifier = nn.Identity()
 pnet_model.dense2 = nn.Identity()
 pnet_model.dropout2 = nn.Identity()
 
-# Freeze the pretrained layers
-for param in transformer_mod.parameters():
-    param.requires_grad = False
+# Freeze most of the pretrained layers, unfreezing selected ones for fine-tuning
+for name, param in transformer_mod.named_parameters():
+    # Unfreeze the last transformer block (adjust as needed for specific layers)
+    if 'layer4' in name:
+        param.requires_grad = True
+    else:
+        param.requires_grad = False
 
 for param in pnet_model.parameters():
     param.requires_grad = False
+pnet_model.dense1.requires_grad = True  # Example of unfreezing a layer in pNet
 
 class CombinedModel(nn.Module):
     def __init__(self, num_classes=10):
         super(CombinedModel, self).__init__()
         self.transformer_mod = transformer_mod
         self.pnet = pnet_model
+
+        # Intermediate layer to help blend and reduce dimensions after concatenation
+        fdim = 256
+        self.intermediate_layer = nn.Linear(768 + 100, fdim)
+        self.fc = nn.Linear(fdim, num_classes)
+        self.layer_norm = nn.LayerNorm(fdim)  # Normalize after the intermediate layer
         
-        # Adjust the fully connected layer based on the output dimensions of TransformerMod and pNet
-        # Assuming the output of TransformerMod is 768 and pNet is 100 (adjust if needed)
-        self.fc = nn.Linear(768 + 100, num_classes)
-    
     def forward(self, cube, profile):
         # Get the output logits directly from transformer_mod
         transformer_output = self.transformer_mod(cube)
@@ -59,7 +66,12 @@ class CombinedModel(nn.Module):
         # Concatenate the outputs from both models
         combined = torch.cat((transformer_out, pnet_out), dim=1)
         
-        # Pass through the final dense layer for classification
+        # Intermediate dense layer to blend features and add non-linearity
+        combined = self.intermediate_layer(combined)
+        combined = self.layer_norm(combined)
+        combined = nn.ReLU()(combined)
+        
+        # Final output layer for classification
         out = self.fc(combined)
         
         return out

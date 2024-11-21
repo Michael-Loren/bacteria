@@ -1,2 +1,4 @@
 ResNet-PyTorch/ResNet/venvres
+ResNet-PyTorch/ResNet/*.pth
 resizedstuff/
+
