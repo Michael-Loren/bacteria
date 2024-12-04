@@ -6,7 +6,7 @@ import torchvision.models as models
 from transformers import AutoModelForImageClassification
 
 # Add the directory to sys.path
-module_path = os.path.abspath(os.path.join('..', '..', '..', 'transform-based-layers', 'layers'))
+module_path = os.path.abspath(os.path.join('transform-based-layers', 'layers'))
 sys.path.append(module_path)
 
 # Import custom transform layers
