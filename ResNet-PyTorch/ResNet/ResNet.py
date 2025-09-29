@@ -14,7 +14,7 @@ from DCT import DCTConv2D
 from BWT import BWTConv2D
 from DChT import DChTConv2D
 class CustomResNet50(nn.Module):
-    def __init__(self, num_classes=10, transform_layer="DCT", height=256, width=256, in_channels=31, out_channels=3, pods=3, residual=False):
+    def __init__(self, num_classes=10, transform_layer="DCT", height=224, width=224, in_channels=31, out_channels=3, pods=3, residual=False):
         super(CustomResNet50, self).__init__()
         # Load the pretrained ResNet-50 model
         self.resnet50 = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V1)

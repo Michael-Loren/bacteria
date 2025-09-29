@@ -4,17 +4,35 @@ from transformer import TransformerMod
 from pnet import pNet
 
 # Define paths to the checkpoint files
-transformer_checkpoint_path = 'transformer.pth'
+transformer_checkpoint_path = 'resnet.pth'
 pnet_checkpoint_path = 'pnet.pth'
 
 # Load the pretrained weights
 transformer_checkpoint = torch.load(transformer_checkpoint_path)
 pnet_checkpoint = torch.load(pnet_checkpoint_path)
 
+
+# Initialize the transformer model BEFORE popping
+transformer_mod_pre = TransformerMod()
+
+print("\n=== Classifier architecture before popping ===")
+print(transformer_mod_pre.customtransformer.classifier)
+
+print("\n=== Classifier parameters before popping ===")
+for name, param in transformer_mod_pre.customtransformer.classifier.named_parameters():
+    print(f"{name}: shape={tuple(param.shape)}")
+
+
+print("Transformer keys before pop:", 
+      [k for k in transformer_checkpoint.keys() if "classifier" in k])
 # Remove the classifier weights from the TransformerMod checkpoint
 transformer_checkpoint.pop('customtransformer.classifier.weight', None)
 transformer_checkpoint.pop('customtransformer.classifier.bias', None)
 
+# Inspect keys after popping
+print("Transformer keys after pop:", 
+      [k for k in transformer_checkpoint.keys() if "classifier" in k])
+      
 # Remove the fully connected layer weights from the pNet checkpoint
 pnet_checkpoint.pop('dense2.weight', None)
 pnet_checkpoint.pop('dense2.bias', None)
